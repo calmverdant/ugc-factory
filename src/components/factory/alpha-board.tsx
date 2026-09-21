@@ -22,11 +22,11 @@ export function AlphaBoard({
     return (
       <div className="rounded-xl border border-border bg-bg-elevated px-4 py-8">
         <p className="text-sm text-fg-muted">
-          No format alpha/beta tests yet. The swarm runs them automatically after a
+          No format α/β tests yet. The swarm runs them automatically after a
           brief — same hook family, two formats, predicted winner.
         </p>
         <Button variant="outline" className="mt-4" onClick={onMint}>
-          Run format alpha/beta
+          Run format α/β
         </Button>
       </div>
     );
@@ -36,7 +36,7 @@ export function AlphaBoard({
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-xs tracking-widest text-fg-subtle uppercase">
-          Format alpha/beta · {experiments.length} test{experiments.length === 1 ? "" : "s"}
+          Format α/β · {experiments.length} test{experiments.length === 1 ? "" : "s"}
         </p>
         <Button size="sm" variant="outline" onClick={onMint}>
           Mint another test
@@ -52,12 +52,13 @@ export function AlphaBoard({
             className="grid gap-3 rounded-xl border border-border bg-bg-elevated p-4 md:grid-cols-2"
           >
             {[alpha, beta].map((ad) => {
-              const arm = ad.abArm === "beta" ? "B" : "A";
+              const arm = ad.abArm === "beta" ? "β" : "α";
               const predicted = pick !== "tie" && pick === (ad.abArm ?? "alpha");
               return (
                 <article key={ad.id} className="rounded-lg bg-paper p-4 text-ink">
                   <p className="font-mono text-xs tracking-widest text-stamp">
-                    {arm} · {padNum(ad.number)} · {ad.hookScore?.value ?? "—"}
+                    {arm} · № {padNum(ad.number)} · {ad.hookScore?.value ?? "—"}{" "}
+                    {ad.hookScore?.label ?? ""}
                   </p>
                   <button
                     type="button"
@@ -88,6 +89,11 @@ export function AlphaBoard({
                 </article>
               );
             })}
+            <p className="md:col-span-2 text-xs text-fg-muted">
+              {pick === "tie"
+                ? "Hook scores are close — shoot both, pick on thumb-stop."
+                : `Press prediction: ${pick === "alpha" ? alpha.formatLabel : beta.formatLabel} holds harder in the first 3 seconds.`}
+            </p>
           </div>
         );
       })}

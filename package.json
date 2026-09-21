@@ -4,9 +4,9 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080",
-    "build": "node scripts/with-app-env.mjs vite build && npm run db:migrate",
-    "db:migrate": "node scripts/migrate.mjs",
+    "dev": "vite dev --host 0.0.0.0 --port 8080",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 8081",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "nitro": "3.0.260610-beta",
     "typescript": "^5.7.0",
     "vite": "^8.2.0"
   }
