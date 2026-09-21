@@ -10,7 +10,7 @@ import { sanitizeBrief } from "@/lib/factory/english";
 import { displayPrice } from "@/lib/factory/locale";
 import { peekKit } from "@/lib/factory/kit";
 import { rateCard } from "@/lib/factory/desk";
-import type { Creator, PageAsset, PersonaId, ProductBrief } from "@/lib/factory/types";
+import type { Creator, PageAsset, PersonaId, ProductBrief, ScrapeReport } from "@/lib/factory/types";
 import { DEFAULT_USAGE } from "@/lib/factory/types";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +89,60 @@ function PageStills({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+const ENGINE_LABEL: Record<string, string> = {
+  firecrawl: "Firecrawl",
+  direct: "Direct page",
+  jina: "Reader",
+  none: "No scrape",
+};
+
+export function ScrapeCard({
+  report,
+  running,
+}: {
+  report?: ScrapeReport | null;
+  running?: boolean;
+}) {
+  if (!running && !report) return null;
+  return (
+    <div className="rounded-xl border border-border bg-bg-subtle p-4">
+      <p className="text-xs font-medium tracking-widest text-fg-subtle uppercase">
+        {running ? "Scrape in progress" : "Page scrape"}
+      </p>
+      {running ? (
+        <p className="mt-2 text-sm text-fg-muted">
+          Firecrawl is reading the page. Brief writer and rival scout run as soon as
+          the markdown lands.
+        </p>
+      ) : report ? (
+        <>
+          <p className="mt-2 text-sm text-fg">
+            {report.title || report.host}
+          </p>
+          <p className="mt-1 text-xs text-fg-muted">
+            {ENGINE_LABEL[report.engine] ?? report.engine}
+            {" · "}
+            {report.chars.toLocaleString()} chars
+            {" · "}
+            {report.assets} assets
+            {report.jsonLd ? " · JSON-LD" : ""}
+          </p>
+          {report.notes.length ? (
+            <ul className="mt-2 space-y-1">
+              {report.notes.map((note) => (
+                <li key={note} className="text-xs text-fg-muted">
+                  {note}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -189,6 +243,8 @@ export function BriefRail({
           </Button>
         </div>
       </div>
+
+      {brief.scrape ? <ScrapeCard report={brief.scrape} /> : null}
 
       {editing ? (
         <div className="grid gap-3">

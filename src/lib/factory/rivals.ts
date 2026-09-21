@@ -100,7 +100,7 @@ async function verifyRivalUrl(raw: string | undefined): Promise<string | undefin
   if (!raw) return undefined;
   const safe = isSafePublicUrl(raw);
   if (!safe) return undefined;
-  const res = await fetchWithTimeout(safe.toString(), 6000);
+  const res = await fetchWithTimeout(safe.toString(), 3000);
   if (!res?.ok) return undefined;
   return safe.toString();
 }

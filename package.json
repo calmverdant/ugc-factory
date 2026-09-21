@@ -26,7 +26,8 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.3.0",
     "tw-animate-css": "^1.3.4",
-    "zod": "^4.4.0"
+    "zod": "^4.4.0",
+    "firecrawl": "^4.41.0"
   },
   "devDependencies": {
     "@types/node": "^22.16.5",

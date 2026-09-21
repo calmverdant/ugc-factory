@@ -6,7 +6,7 @@ import { AdCard } from "@/components/factory/ad-card";
 import { AdDialog } from "@/components/factory/ad-dialog";
 import { AlphaBoard } from "@/components/factory/alpha-board";
 import { BrandKitPanel } from "@/components/factory/brand-kit-panel";
-import { BriefRail } from "@/components/factory/brief-rail";
+import { BriefRail, ScrapeCard } from "@/components/factory/brief-rail";
 import { CalendarView } from "@/components/factory/calendar-view";
 import { FilterBar } from "@/components/factory/filter-bar";
 import { MatrixView } from "@/components/factory/matrix-view";
@@ -74,6 +74,7 @@ import type {
   PlatformId,
   ProductBrief,
   ProductPack,
+  ScrapeReport,
   WinnerMemory,
 } from "@/lib/factory/types";
 import { DEFAULT_KIT } from "@/lib/factory/types";
@@ -110,6 +111,7 @@ export function FactoryApp() {
   const queryRef = useRef("");
   const writeGen = useRef(0);
   const [resume, setResume] = useState<ResumeState | null>(null);
+  const [scrape, setScrape] = useState<ScrapeReport | null>(null);
 
   function stashResume(next: ResumeState) {
     setResume(next);
@@ -292,6 +294,7 @@ export function FactoryApp() {
     setReady(false);
     setWriting(true);
     setError(null);
+    setScrape(null);
 
     const local = localBriefFromQuery(value);
     if (local) {
@@ -303,13 +306,18 @@ export function FactoryApp() {
     try {
       const result = await writeProductBrief({ data: { query: value } });
       if (gen !== writeGen.current) return;
+      if (result.scrape) setScrape(result.scrape);
       if (!result.ok) {
         setWriting(false);
         setError(result.error);
         return;
       }
       applyBrief(result.brief, value);
-      toast.message(`Brief written for ${result.brief.name}`);
+      toast.message(
+        result.scrape
+          ? `Scraped ${result.scrape.host} · brief written for ${result.brief.name}`
+          : `Brief written for ${result.brief.name}`,
+      );
     } catch {
       if (gen !== writeGen.current) return;
       setWriting(false);
@@ -521,6 +529,7 @@ export function FactoryApp() {
     setWriting(false);
     setError(null);
     setOpenAd(null);
+    setScrape(null);
   }
 
   function patchAd(next: MintedAd) {
@@ -894,10 +903,13 @@ export function FactoryApp() {
             </form>
 
             {writing ? (
-              <p className="mt-3 text-sm text-fg-muted" role="status">
-                Reading {hostOf(query) ?? "that page"} — product, problem, how
-                it is used, and page assets. Previous websites stay off this brief.
-              </p>
+              <div className="mt-4 max-w-2xl">
+                <ScrapeCard running />
+              </div>
+            ) : scrape ? (
+              <div className="mt-4 max-w-2xl">
+                <ScrapeCard report={scrape} />
+              </div>
             ) : null}
 
             {error ? (

@@ -6,6 +6,7 @@ Paste a product URL. The press scrapes **that page only** — product, problem, 
 
 ## What it does
 
+- **Firecrawl scrape.** Paste a URL and the press reads markdown + HTML + pack shots. You see a scrape card (engine, character count, assets, JSON-LD). Brief writer and rival scout then run together.
 - **One product per paste.** A new URL hard-cuts the last brief. Home starts a clean paste. Continue last brief is optional.
 - **Full page scrape.** JSON-LD, pack shots classified (hero / pack / lifestyle), problem, how to use, promotion, benefits.
 - **Rival scout** — automatic. No extra paste.

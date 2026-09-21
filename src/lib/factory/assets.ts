@@ -11,7 +11,7 @@ const DESIGN_ROOTS = [
 ];
 
 const CDN_HINT =
-  /shopify|cloudinary|imgix|googleusercontent|fbcdn|twimg|squarespace|wixstatic|bigcommerce|woocommerce|akamai|cloudfront|fastly|scene7|demandware|magento|sfcc|imgix\.net|images\.unsplash|cdn\.shop/i;
+  /shopify|cloudinary|imgix|googleusercontent|fbcdn|twimg|squarespace|wixstatic|bigcommerce|woocommerce|akamai|cloudfront|fastly|scene7|demandware|magento|sfcc|imgix\.net|images\.unsplash|cdn\.shop|cdn-apple|appleusercontent|akamaihd|scene7/i;
 
 const CHROME_PATH =
   /\/(?:editor|template|templates|canvas|ui-kit|mockup|logo-maker|design-tool)\//i;

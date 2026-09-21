@@ -139,6 +139,19 @@ export type PageAsset = {
   kind: PageAssetKind;
 };
 
+export type ScrapeEngine = "firecrawl" | "direct" | "jina" | "none";
+
+export type ScrapeReport = {
+  engine: ScrapeEngine;
+  url: string;
+  host: string;
+  title?: string;
+  chars: number;
+  assets: number;
+  jsonLd: boolean;
+  notes: string[];
+};
+
 export type Rival = {
   name: string;
   url?: string;
@@ -183,6 +196,7 @@ export type ProductBrief = {
   howToUse?: string;
   promotion?: string;
   benefits?: string[];
+  scrape?: ScrapeReport;
 };
 
 export type Combo = {
@@ -366,8 +380,8 @@ export type DropSlot = {
 };
 
 export type WriteBriefResult =
-  | { ok: true; brief: ProductBrief }
-  | { ok: false; error: string };
+  | { ok: true; brief: ProductBrief; scrape?: ScrapeReport }
+  | { ok: false; error: string; scrape?: ScrapeReport };
 
 export const DEFAULT_USAGE =
   "Whitelisted 30 days. Organic and paid usage. No paid social unless restated.";

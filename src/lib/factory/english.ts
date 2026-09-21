@@ -119,6 +119,7 @@ export function sanitizeBrief(brief: ProductBrief): ProductBrief {
     howToUse: brief.howToUse ? cleanLine(brief.howToUse).slice(0, 220) : undefined,
     promotion: brief.promotion ? cleanLine(brief.promotion).slice(0, 160) : undefined,
     benefits: brief.benefits ? cleanList(brief.benefits).slice(0, 4) : undefined,
+    scrape: brief.scrape,
   };
 }
 

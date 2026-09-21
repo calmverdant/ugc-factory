@@ -1,17 +1,18 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import {
-  extractJsonLdProduct,
-  guessBenefits,
-  guessHowToUse,
-  guessPromotion,
-  type JsonLdProduct,
-} from "./assets";
+import type { JsonLdProduct } from "./assets";
 import { GLOBAL_ENGLISH_RULES, sanitizeBrief } from "./english";
-import { extractPageAssets, heuristicBrief, isSafePublicUrl } from "./heuristic";
+import { heuristicBrief, isSafePublicUrl } from "./heuristic";
 import { attachReviews } from "./reviews";
 import { attachRivals, scoutRivals } from "./rivals";
-import type { ClaimSource, PageAsset, ProductBrief, WriteBriefResult } from "./types";
+import { failedScrape, scrapeProductPage } from "./scrape";
+import type {
+  ClaimSource,
+  PageAsset,
+  ProductBrief,
+  ScrapeReport,
+  WriteBriefResult,
+} from "./types";
 
 const Input = z.object({
   query: z.string().trim().min(1).max(2000),
@@ -53,14 +54,20 @@ function stripFence(text: string): string {
   return text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .slice(0, 20000);
+function jsonLdBlock(json: JsonLdProduct | null): string {
+  if (!json) return "";
+  return [
+    json.name ? `JSON-LD name: ${json.name}` : "",
+    json.brand ? `JSON-LD brand: ${json.brand}` : "",
+    json.description ? `JSON-LD description: ${json.description}` : "",
+    json.price ? `JSON-LD price: ${json.price}` : "",
+    json.category ? `JSON-LD category: ${json.category}` : "",
+    json.sku ? `JSON-LD sku: ${json.sku}` : "",
+    json.rating ? `JSON-LD rating: ${json.rating}` : "",
+    json.howToUse ? `JSON-LD how to use: ${json.howToUse}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function coerceBrief(raw: unknown, fallback: ProductBrief): ProductBrief {
@@ -125,6 +132,7 @@ function coerceBrief(raw: unknown, fallback: ProductBrief): ProductBrief {
     promotion:
       typeof o.promotion === "string" ? (o.promotion as string).slice(0, 160) : fallback.promotion,
     benefits: arr("benefits" as keyof ProductBrief, fallback.benefits ?? []),
+    scrape: fallback.scrape,
   };
 }
 
@@ -145,87 +153,18 @@ function coerceSources(raw: unknown, fallback: ProductBrief): ClaimSource[] | un
   return rows.length ? rows : fallback.claimSources;
 }
 
-async function fetchWithTimeout(
-  url: string,
-  init: RequestInit,
-  ms: number,
-): Promise<Response | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } catch {
-    return null;
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
   }
-}
-
-type ScrapedPage = {
-  text: string;
-  assets: PageAsset[];
-  jsonLd: JsonLdProduct | null;
-  finalUrl: string;
-  howToUse?: string;
-  promotion?: string;
-  benefits: string[];
-};
-
-function jsonLdBlock(json: JsonLdProduct | null): string {
-  if (!json) return "";
-  return [
-    json.name ? `JSON-LD name: ${json.name}` : "",
-    json.brand ? `JSON-LD brand: ${json.brand}` : "",
-    json.description ? `JSON-LD description: ${json.description}` : "",
-    json.price ? `JSON-LD price: ${json.price}` : "",
-    json.category ? `JSON-LD category: ${json.category}` : "",
-    json.sku ? `JSON-LD sku: ${json.sku}` : "",
-    json.rating ? `JSON-LD rating: ${json.rating}` : "",
-    json.howToUse ? `JSON-LD how to use: ${json.howToUse}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-async function fetchPage(url: URL): Promise<ScrapedPage> {
-  const [jina, direct] = await Promise.all([
-    fetchWithTimeout(`https://r.jina.ai/${url.toString()}`, {
-      headers: { Accept: "text/plain", "User-Agent": "UGCFactory/1.0" },
-    }, 12000),
-    fetchWithTimeout(url.toString(), {
-      headers: { "User-Agent": "UGCFactory/1.0", Accept: "text/html" },
-      redirect: "follow",
-    }, 8000),
-  ]);
-
-  let html = "";
-  let finalUrl = url.toString();
-  if (direct?.ok) {
-    html = await direct.text();
-    if (direct.url) finalUrl = direct.url;
-  }
-  const assets = html ? extractPageAssets(html, finalUrl) : [];
-  const jsonLd = html ? extractJsonLdProduct(html, finalUrl) : null;
-  const stripped = html ? stripHtml(html) : "";
-
-  let text = "";
-  if (jina?.ok) {
-    text = (await jina.text()).slice(0, 20000);
-  } else {
-    text = stripped;
-  }
-  const extra = jsonLdBlock(jsonLd);
-  if (extra) text = `${extra}\n\n${text}`.slice(0, 20000);
-
-  return {
-    text,
-    assets,
-    jsonLd,
-    finalUrl,
-    howToUse: jsonLd?.howToUse || guessHowToUse(text),
-    promotion: guessPromotion(text),
-    benefits: guessBenefits(text),
-  };
 }
 
 async function grokBrief(input: {
@@ -305,96 +244,107 @@ async function grokBrief(input: {
   }
 }
 
+function looksLikeUrl(query: string): boolean {
+  return (
+    /^https?:\/\//i.test(query) ||
+    (!/\s/.test(query) && query.includes(".") && query.length < 180)
+  );
+}
+
 export const writeProductBrief = createServerFn({ method: "POST" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<WriteBriefResult> => {
     const query = data.query.trim();
-    const looksLikeUrl =
-      /^https?:\/\//i.test(query) ||
-      (!/\s/.test(query) && query.includes(".") && query.length < 180);
-
-    let pageText = "";
-    let pageAssets: PageAsset[] = [];
-    let url: string | undefined;
-    let jsonLd: JsonLdProduct | null = null;
-    let howToUse: string | undefined;
-    let promotion: string | undefined;
-    let benefits: string[] = [];
-
-    if (looksLikeUrl) {
-      const safe = isSafePublicUrl(
-        /^https?:\/\//i.test(query) ? query : `https://${query}`,
-      );
-      if (!safe) {
-        return { ok: false, error: "That URL is not a public http(s) page." };
-      }
-      const page = await fetchPage(safe);
-      url = page.finalUrl || safe.toString();
-      pageText = page.text;
-      pageAssets = page.assets;
-      jsonLd = page.jsonLd;
-      howToUse = page.howToUse;
-      promotion = page.promotion;
-      benefits = page.benefits;
-    }
-
-    const images = pageAssets.map((item) => item.url);
+    let scrape: ScrapeReport | undefined;
 
     try {
-      const fromGrok = await grokBrief({
-        pageText: pageText || query,
+      let pageText = "";
+      let pageAssets: PageAsset[] = [];
+      let url: string | undefined;
+      let jsonLd: JsonLdProduct | null = null;
+      let howToUse: string | undefined;
+      let promotion: string | undefined;
+      let benefits: string[] = [];
+      let title: string | undefined;
+
+      if (looksLikeUrl(query)) {
+        const safe = isSafePublicUrl(
+          /^https?:\/\//i.test(query) ? query : `https://${query}`,
+        );
+        if (!safe) {
+          return { ok: false, error: "That URL is not a public http(s) page." };
+        }
+        const page = await scrapeProductPage(safe);
+        scrape = page.report;
+        url = page.finalUrl || safe.toString();
+        pageText = page.text;
+        pageAssets = page.assets;
+        jsonLd = page.jsonLd;
+        howToUse = page.howToUse;
+        promotion = page.promotion;
+        benefits = page.benefits;
+        title = page.title;
+
+        if (!pageText) {
+          return {
+            ok: false,
+            error:
+              "Could not read that page. Try another public product URL, or type demo.",
+            scrape,
+          };
+        }
+      }
+
+      const images = pageAssets.map((item) => item.url);
+      const seed = heuristicBrief({
         query,
+        pageText: pageText || query,
         url,
-        assets: pageAssets,
-        jsonLd,
+        title,
+        pageImages: images,
+        pageAssets,
         howToUse,
         promotion,
         benefits,
       });
-      if (fromGrok) {
-        const isolated: ProductBrief = sanitizeBrief({
-          ...fromGrok,
-          url,
-          source: url ? "url" : "typed",
-          pageImages: images.length ? images : fromGrok.pageImages,
-          pageAssets: pageAssets.length ? pageAssets : fromGrok.pageAssets,
-          howToUse: fromGrok.howToUse || howToUse,
-          promotion: fromGrok.promotion || promotion,
-          benefits: fromGrok.benefits?.length ? fromGrok.benefits : benefits,
-          voiceSamples: undefined,
-        });
-        const withRivals = attachRivals(
-          isolated,
-          await scoutRivals(isolated, pageText || query),
-        );
-        return { ok: true, brief: withRivals };
-      }
-    } catch {
-      // fall through
-    }
+      seed.scrape = scrape;
 
-    if (looksLikeUrl && !pageText) {
+      const [fromGrok, rivals] = await Promise.all([
+        withTimeout(
+          grokBrief({
+            pageText: pageText || query,
+            query,
+            url,
+            assets: pageAssets,
+            jsonLd,
+            howToUse,
+            promotion,
+            benefits,
+          }),
+          22000,
+        ),
+        withTimeout(scoutRivals(seed, pageText || query), 12000).then((list) => list ?? []),
+      ]);
+
+      const base = fromGrok ?? seed;
+      const isolated: ProductBrief = sanitizeBrief({
+        ...base,
+        url,
+        source: url ? "url" : "typed",
+        pageImages: images.length ? images : base.pageImages,
+        pageAssets: pageAssets.length ? pageAssets : base.pageAssets,
+        howToUse: base.howToUse || howToUse,
+        promotion: base.promotion || promotion,
+        benefits: base.benefits?.length ? base.benefits : benefits,
+        voiceSamples: undefined,
+        scrape,
+      });
+      return { ok: true, brief: attachRivals(isolated, rivals ?? []), scrape };
+    } catch {
       return {
         ok: false,
-        error:
-          "Could not read that page. Type demo, or paste a short product description instead.",
+        error: "Could not write that brief. Try demo, or a shorter description.",
+        scrape: scrape ?? failedScrape(query, ["The brief swarm hit an error."]).report,
       };
-    }
-
-    const fallback = heuristicBrief({
-      query,
-      pageText,
-      url,
-      pageImages: images,
-      pageAssets,
-      howToUse,
-      promotion,
-      benefits,
-    });
-    try {
-      const rivals = await scoutRivals(fallback, pageText || query);
-      return { ok: true, brief: attachRivals(fallback, rivals) };
-    } catch {
-      return { ok: true, brief: fallback };
     }
   });

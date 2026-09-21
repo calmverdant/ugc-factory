@@ -186,6 +186,7 @@ export function heuristicBrief(input: {
   query: string;
   pageText?: string;
   url?: string;
+  title?: string;
   pageImages?: string[];
   pageAssets?: PageAsset[];
   howToUse?: string;
@@ -199,7 +200,7 @@ export function heuristicBrief(input: {
   )
     .replace(/^www\./, "")
     .slice(0, 80);
-  const name = (heading ?? fromQuery) || "Untitled product";
+  const name = (input.title?.trim() || heading || fromQuery) || "Untitled product";
 
   const sentences = text
     .split(/(?<=[.!?])\s+/)
