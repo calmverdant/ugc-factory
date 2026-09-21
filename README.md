@@ -1,15 +1,24 @@
 # UGC Factory
 
-Grok **Build Mode** app: paste a product URL, get a brief, mint endless native UGC ads.
+Paste a product URL. A press swarm writes a global English brief, scouts rivals, mints format alpha/beta tests, then you generate a 9:16 UGC video.
+
+## What it does
+
+- **Brief writer** — URL or `demo` / `aera` / `harbor`
+- **Rival scout** — automatic. No extra paste. Names + official pages when they verify
+- **Format alpha/beta** — same hook family, two formats, predicted winner
+- **31 hooks × 16 formats × 6 personas × 5 platforms**
+- **Content visualization** — 9:16 filmstrip on every ad, even before a clip exists
+- **Bundle** — sequence shots stitch into one 9:16 file
+- Video stays a button. Six clips a day. English, global. No accounts.
 
 ## Run
 
-This conversation / grok.com → **Build** → the live preview is `index.html`.
+```bash
+npm install
+npm run dev
+```
 
-Or open `index.html` locally. Type `demo` if you do not want to fetch a URL.
+## GitHub
 
-## What you get
-
-Hook, timed script, on-screen text, caption, hashtags, Meta primary text, shot list, creator direction, image prompt. 16 formats × 19 hooks × 6 personas × 5 platforms.
-
-Python server leftovers (`server.py`, `extractor.py`) are the original local factory. Build Mode uses only `index.html`.
+https://github.com/calmverdant/ugc-factory
