@@ -1,14 +1,5 @@
-# UGC Factory — Grok Build Mode
+UGC Factory lives in this repo as a TanStack Start press.
 
-Single-file HTML/JS app. No Python. No install.
+Paste a product URL. The swarm writes a global English brief, scouts rivals, mints format alpha/beta tests, and visualizes a 9:16 filmstrip. Generate video is a button — six clips a day. Sequence shots bundle into one file.
 
-Open `index.html` in Grok Build Mode (or any browser).
-
-- Type `demo` to mint against a sample product
-- Paste a public product URL to fetch a brief (via text proxy)
-- Mint 8 more for endless variations
-- Export pack downloads scripts as text
-
-Publish from Grok: Build mode switcher → Publish → grok.me link.
-
-Repo: https://github.com/calmverdant/ugc-factory
+See README.md.
